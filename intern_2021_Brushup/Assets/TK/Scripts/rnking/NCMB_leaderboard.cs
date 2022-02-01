@@ -50,6 +50,8 @@ public class NCMB_leaderboard : MonoBehaviour
     [SerializeField] private List<Text> _failedOptions;
 
     [SerializeField] private int OptionNum;
+    [SerializeField] private bool _conectFailed=false;
+    [SerializeField] private bool _firstFetch = true;
 
     public List<NCMB_Ranker> _topRankers = null;
 
@@ -151,40 +153,11 @@ public class NCMB_leaderboard : MonoBehaviour
                 break;
             case RankingState.FETCH:
                 {
-                    if (fetchTopRankers() && _isOnline)
+                    if (fetchTopRankers())
                     {
                         //ランキング表示の準備
-                        float posy = 0;
-                        for (int i = 0; i < _viewRankingNum+1; i++)//ランキング圏外ように一個余分に作る
-                        {
-                            var g = Instantiate(_nameScoreSource);
-                            g.transform.parent = this.transform;
-                            g.GetComponent<RectTransform>().localPosition = new Vector3(_scorePosition.x, _scorePosition.y+posy, _scorePosition.z);
-                            posy -= _height;
-                            _top.Add(g);
-                        }
-                        GetComponent<sDrumrollComponent>().InputList(_top);
-                        //もし失敗時メッセージが出てたら消しとく
-                        _failedHeader.GetComponent<TK.ViewUi>().HideMessage();
-                        for (int i = 0; i < _failedOptions.Count; i++)
-                        {
-                            if (_failedOptions[i].text.Length > 0)
-                            {
-                                _failedOptions[i].GetComponent<TK.ViewUi>().HideMessage();
-                            }
-                        }
+
                         _state = RankingState.VIEW;
-                    }
-                    else
-                    {
-                        _failedHeader.GetComponent<TK.ViewUi>().ShowWindow();
-
-                        for (int i = 0; i < _failedOptions.Count; i++)
-                        {
-                            _failedOptions[i].GetComponent<TK.ViewUi>().ShowWindow();
-
-                        }
-                        _state = RankingState.FAILED;
                     }
                 }
                 break;
@@ -211,6 +184,30 @@ public class NCMB_leaderboard : MonoBehaviour
                     // ランキングの取得が完了したら1度だけ実行
                     if (_topRankers != null)
                     {
+
+                        if (_firstFetch)
+                        {
+                            _firstFetch = false;
+                            float posy = 0;
+                            for (int i = 0; i < _viewRankingNum + 1; i++)//ランキング圏外ように一個余分に作る
+                            {
+                                var g = Instantiate(_nameScoreSource);
+                                g.transform.parent = this.transform;
+                                g.GetComponent<RectTransform>().localPosition = new Vector3(_scorePosition.x, _scorePosition.y + posy, _scorePosition.z);
+                                posy -= _height;
+                                _top.Add(g);
+                            }
+                            GetComponent<sDrumrollComponent>().InputList(_top);
+                            //もし失敗時メッセージが出てたら消しとく
+                            _failedHeader.GetComponent<TK.ViewUi>().HideMessage();
+                            for (int i = 0; i < _failedOptions.Count; i++)
+                            {
+                                if (_failedOptions[i].text.Length > 0)
+                                {
+                                    _failedOptions[i].GetComponent<TK.ViewUi>().HideMessage();
+                                }
+                            }
+                        }
                         _topRankers.Add(_currentRecord);
                         _topRankers.Sort((a, b) => b.score - a.score);
                         bool first = true;
@@ -268,6 +265,17 @@ public class NCMB_leaderboard : MonoBehaviour
                             }
                             _state = RankingState.SELECT;
                         }
+                    }
+                    else if(_conectFailed)
+                    {
+                        _failedHeader.GetComponent<TK.ViewUi>().ShowWindow();
+
+                        for (int i = 0; i < _failedOptions.Count; i++)
+                        {
+                            _failedOptions[i].GetComponent<TK.ViewUi>().ShowWindow();
+
+                        }
+                        _state = RankingState.FAILED;
                     }
                 }
                 break;
@@ -420,13 +428,13 @@ public class NCMB_leaderboard : MonoBehaviour
 
         query.Limit = _viewRankingNum;
 
-        bool isConnected = true;
         query.FindAsync((List<NCMBObject> objList, NCMBException e) =>
         {
             if (e != null)
             {
                 Debug.Log("検索に失敗しました。エラーコード：" + e.ErrorCode);
-                isConnected = false;
+
+                _conectFailed = true;
             }
             else
             {
@@ -443,7 +451,7 @@ public class NCMB_leaderboard : MonoBehaviour
             }
         });
 
-        return isConnected;
+        return true;
     }
 
 }
